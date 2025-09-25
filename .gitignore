@@ -1,3 +1,11 @@
+.venv/
+dist/
+build/
+__pycache__/
+.pytest_cache/
+.streamlit/
+*.xlsx
+*.spec
 venv/
 __pycache__/
 .streamlit/

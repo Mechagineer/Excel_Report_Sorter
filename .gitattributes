@@ -1,0 +1,8 @@
+.venv/            export-ignore
+dist/             export-ignore
+build/            export-ignore
+__pycache__/      export-ignore
+.pytest_cache/    export-ignore
+.streamlit/       export-ignore
+*.xlsx            export-ignore
+*.spec            export-ignore

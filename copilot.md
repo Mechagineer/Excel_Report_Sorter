@@ -52,7 +52,13 @@
 8) Build hygiene
    - Kill running EXEs and delete `dist/` and `build/` before builds; rename output if locked.
 
+9) Try/Except Scoping (No dangling or overlapping tries)
+   - Never open a `try:` that spans across unrelated UI sections.
+   - If a `try:` is introduced, it must be fully closed with `except`/`finally` **before** starting another `try:` at the same or outer indent.
+   - No nested `try` unless each has its own `except`/`finally` and scopes do not overlap accidentally.
+   - CI/Pre-commit: run `python -m compileall -q app.py` to fail builds on `SyntaxError`.
 
-# Notes
-- From now on, follow these guardrails for every change and PR.
-- For syntax checking before running the app: `python -m compileall -q .` or `python -m pyflakes app.py` if installed.
+   Packaging Guardrail — Keep archives lean
+   - Source zips must exclude: .venv/, dist/, build/, __pycache__/, .pytest_cache/, .streamlit/, *.xlsx, *.spec
+   - Binary releases ship ONLY dist/*.exe (no venv, no build tree).
+   - Enforce via .gitignore + .gitattributes (export-ignore) and the make-zip scripts.
