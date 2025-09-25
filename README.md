@@ -124,14 +124,23 @@ pytest -q
 
 ## 📦 Windows Packaging
 
-To build a standalone Windows `.exe` (requires PyInstaller):
-```bash
-pyinstaller --name ExcelReportSorter --onefile --noconsole \
-  --add-data "app.py;." \
-  --add-data "sorter.py;." \
-  launch_gui.py
+To build a standalone Windows `.exe` (requires PyInstaller) from PowerShell (venv active):
+```powershell
+# Clean old outputs (avoid locked EXEs)
+Get-Process ExcelReportSorter* -ErrorAction SilentlyContinue | Stop-Process -Force
+Remove-Item -Recurse -Force .\dist, .\build -ErrorAction SilentlyContinue
+
+# Build (Windows PowerShell, venv active)
+py -m PyInstaller --name ExcelReportSorter_v4 --onefile --noconsole `
+   --add-data "app.py;." `
+   --add-data "sorter.py;." `
+   --hidden-import "streamlit.web.cli" `
+   --copy-metadata streamlit `
+   --collect-data streamlit `
+   --collect-submodules streamlit `
+   launch_gui.py
 ```
-Result: `dist/ExcelReportSorter.exe`
+Result: `dist/ExcelReportSorter_v4.exe`
 
 ---
 
