@@ -155,10 +155,57 @@ try:
     # Apply filter (preserve row order)
     df = df.loc[combined]
 
-    # Save single sheet 'Cleaned' to Downloads
-    out_path = write_cleaned(df, get_downloads_dir(), sheet_name="Cleaned")
+    # --- COMBINE BY I & N, SUM R/S/T/U ---
+
+    # Detect group keys by header text with soft positional preferences:
+    # I (Invoice no.) ~ 9th column (0-based 8), N (Order no.) ~ 14th column (0-based 13).
+    I_col = detect_column_by_header(
+        df,
+        prefer_index=8,
+        patterns=[r"\binvoice\s*no\b", r"\binvoice\b", r"\binv\b"]
+    )
+    N_col = detect_column_by_header(
+        df,
+        prefer_index=13,
+        patterns=[r"\border\s*no\b", r"\border\b", r"\border\s*#\b"]
+    )
+
+    # Detect numeric sum columns with safe fallbacks to letter positions:
+    # R/S/T/U are approx columns 18–21 (0-based 17–20).
+    sum_targets = [
+        # (prefer_index, patterns)
+        (17, [r"\bmaterial\b", r"\bmat(erial)?\b"]),
+        (18, [r"\blabor\b", r"\bwage\b"]),
+        (19, [r"\bfreight\b", r"\bshipping\b", r"\bother\b"]),
+        (20, [r"\bcosts?\b", r"\btotal\b", r"\bamount\b"]),
+    ]
+    sum_cols = []
+    for idx, pats in sum_targets:
+        c = detect_column_by_header(df, prefer_index=idx, patterns=pats)
+        if c not in (I_col, N_col) and c not in sum_cols:
+            sum_cols.append(c)
+
+    # Coerce to numeric (non-numeric → NaN)
+    for c in sum_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    # Group and sum. Named aggregation avoids any key collisions.
+    if sum_cols:
+        agg_spec = {c: "sum" for c in sum_cols}
+        result = df.groupby([I_col, N_col], dropna=False, as_index=False).agg(agg_spec)
+        # Ensure column order: I, N, then summed columns
+        result = result[[I_col, N_col] + sum_cols]
+    else:
+        # No sum columns detected: fall back to keeping the first row per group
+        result = df.groupby([I_col, N_col], dropna=False, as_index=False).first()
+        # Reorder to put I_col, N_col first
+        other_cols = [c for c in result.columns if c not in (I_col, N_col)]
+        result = result[[I_col, N_col] + other_cols]
+
+    # Save the grouped result (single sheet 'Cleaned')
+    out_path = write_cleaned(result, get_downloads_dir(), sheet_name="Cleaned")
     st.success(f"Saved to: {out_path}")
-    st.caption(f"Rows in output: {len(df):,}")
+    st.caption(f"Rows in output: {len(result):,}")
 
 except Exception as e:
     st.exception(e)
