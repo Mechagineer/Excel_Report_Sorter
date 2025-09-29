@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 from sorter import get_downloads_dir, write_cleaned
+import re
 
 
 def normalize_headers(cols):
@@ -16,6 +17,54 @@ def safe_col(df, name: str):
         if str(c).strip().casefold() == target:
             return c
     raise KeyError(name)
+
+
+def detect_column_by_header(df, prefer_index=None, patterns=None):
+    """
+    Return the column name that best matches any of the given patterns.
+    - patterns: list of compiled regex or strings (case-insensitive).
+    - prefer_index: 0-based index to use as a fallback if it's a good header.
+    A 'good' header is not empty, not a single letter (A/B/…),
+    and not an 'Unnamed:' placeholder.
+    """
+    cols = list(df.columns)
+    # Normalize once
+    norm = [str(c).strip() for c in cols]
+    lower = [c.casefold() for c in norm]
+
+    # 1) try pattern matches
+    if patterns:
+        compiled = [
+            re.compile(p, re.IGNORECASE) if isinstance(p, str) else p
+            for p in patterns
+        ]
+        scores = [0] * len(cols)
+        for i, s in enumerate(norm):
+            for rx in compiled:
+                if rx.search(s):
+                    scores[i] += 1
+        if any(scores):
+            best = max(range(len(cols)), key=lambda i: scores[i])
+            return cols[best]
+
+    def good_header(name: str) -> bool:
+        s = name.strip()
+        if not s: return False
+        if s.lower().startswith("unnamed:"): return False
+        # Treat single letter headers as low-quality (A, B, …)
+        if len(s) == 1 and s.isalpha(): return False
+        return True
+
+    # 2) prefer the provided index if it looks good
+    if prefer_index is not None and 0 <= prefer_index < len(cols):
+        if good_header(norm[prefer_index]):
+            return cols[prefer_index]
+
+    # 3) otherwise pick the first 'good' header; fallback to last
+    for i, s in enumerate(norm):
+        if good_header(s):
+            return cols[i]
+    return cols[-1]
 
 
 st.set_page_config(page_title="Excel Report Sorter (MVP A-only)", layout="wide")
@@ -44,14 +93,17 @@ try:
     # Auto-detect A = first column
     A = df.columns[0]
 
-    # Auto-detect H = 8th column if present; otherwise heuristic, else last col
-    if df.shape[1] >= 8:
-        H = df.columns[7]
-    else:
-        H = next((c for c in df.columns if "sales clerk" in str(c).casefold()), None) \
-            or next((c for c in df.columns if "partner" in str(c).casefold()), None)
-        if not H:
-            H = df.columns[-1]
+    # Auto-detect H by header text (robust) with a soft preference for the 8th column
+    H = detect_column_by_header(
+        df,
+        prefer_index=7,  # 0-based: the 8th column if it looks like a real header
+        patterns=[
+            r"\bsales\s*clerk\b",          # "Sales clerk"
+            r"\bclerk\b.*\bpartner\b",     # "clerk ... partner"
+            r"\bpartner\b",                # catch "(partner)"
+            r"\bsales\b.*\bpartner\b",
+        ],
+    )
 
 except Exception as e:
     st.error(f"File error: {e}")
