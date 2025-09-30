@@ -15,3 +15,11 @@ build/
 *.spec
 .venv
 scripts/
+.venv/
+dist/
+build/
+__pycache__/
+.pytest_cache/
+.streamlit/
+*.xlsx
+*.spec
