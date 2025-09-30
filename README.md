@@ -6,10 +6,10 @@ Excel Report Sorter is a minimal local app that lets you **drag & drop an Excel 
 
 **Key Features:**
 - Drag & drop `.xlsx` files (Streamlit GUI)
-- Filter and sort by string columns (A, D, E, H) with editable default value `"8760"`
+- Filter and sort by string columns with editable default value `"8760"`
 - Compress/group by columns I & N, summing column U
 - Output a single worksheet named `Cleaned` to your Downloads folder
-- All processing is local (no network)
+- All processing is local (no network) if not using API
 
 ---
 
